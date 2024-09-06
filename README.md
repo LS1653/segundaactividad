@@ -260,3 +260,141 @@ public class Serial : MonoBehaviour
         }
     }
 }
+
+¿Funciona?
+Si, el codigo funciona y no se bloquea, sin embargo este mismo codigo siempre asume que se le enviaran todos los bytes que contienen al menaje a la hora de hacer la operación de lectura de dichos bytes.
+
+¿Qué pasaría si al ejecutar _serialPort.Read(buffer, 0, 20) solo han llegado 10 de los 16 bytes del mensaje?
+En ese caso, la función Read() leería solo los 10 bytes disponibles y guardaria esos bytes en el buffer. El problema es que el código se sigue ejecutándose, por lo que el codigo ignoria el hecho de que faltan 6 bytes.
+
+¿Cómo puede hacer tu programa para saber que ya tiene el mensaje completo?
+Las dos opciones que se me ocurren son, tener una variable que posea el numero de bytes que se necesecitan para imprimir el mensaje completo y pues hacer un verificador en el cual se mire  si el bufer posee o no la cantidad de bytes pedida, el mensaje no se imprimira, caso contrario si tiene la cantidad requerida.
+
+Y la otra opción es hacer lo mismo que ya hace este programa que es mantener fija la cantidad de bytes que contienen al mensaje o mejor dicho el mensaje es el mismo siempre, lo cual le facilita al programa saber que solo tiene que llegar a la cantidad de bytes requerida para imprimir el mensaje.
+
+¿Cómo se podría garantizar que antes de hacer la operación Read tenga los 16 bytes listos para ser leídos?
+Por lo que pude investigar, para garantizar que antes de realizar una lectura se hayan recibido los 16 bytes, se puede llegar a verificar la cantidad de datos disponibles en el puerto serial con _serialPort.BytesToRead. Si hay menos de 16 bytes disponibles, el programa puede esperar y continuar acumulando bytes hasta que tenga los 16 completos.
+
+ej: Verificar que hay al menos 16 bytes disponibles antes de leer
+if (_serialPort.BytesToRead >= 16)
+{
+    int numData = _serialPort.Read(buffer, 0, 16);
+    // Procesar el mensaje de 16 bytes
+}
+
+intento de implementación en el codigo
+
+using UnityEngine;
+using System.IO.Ports;
+using TMPro;
+
+public class Serial : MonoBehaviour
+{
+    private SerialPort _serialPort = new SerialPort();
+    private byte[] buffer = new byte[32]; // Buffer para almacenar datos recibidos
+    private const int messageLength = 16; // Longitud del mensaje esperado
+
+    public TextMeshProUGUI myText;
+
+    private static int counter = 0;
+
+    void Start()
+    {
+        _serialPort.PortName = "COM4"; // Nombre del puerto serial
+        _serialPort.BaudRate = 115200; // Velocidad de comunicación
+        _serialPort.DtrEnable = true;  // Habilita DTR (Data Terminal Ready)
+        _serialPort.Open(); // Abre el puerto serial
+        Debug.Log("Open Serial Port");
+    }
+
+    void Update()
+    {
+        myText.text = counter.ToString(); // Actualiza el texto en pantalla con el valor de 'counter'
+        counter++; // Incrementa el contador en cada frame
+
+        if (Input.GetKeyDown(KeyCode.A)) // Si se presiona la tecla 'A'
+        {
+            byte[] data = { 0x31 }; // Envía el byte 0x31 (equivalente al carácter '1')
+            _serialPort.Write(data, 0, 1); // Envía un byte al puerto serial
+        }
+
+        // Verifica si hay datos disponibles para leer y si la cantidad de datos es suficiente
+        if (_serialPort.BytesToRead >= messageLength)
+        {
+            // Lee solo si ya hay suficientes bytes disponibles
+            int numData = _serialPort.Read(buffer, 0, messageLength); // Lee 16 bytes del puerto serial
+            string receivedMessage = System.Text.Encoding.ASCII.GetString(buffer, 0, numData); // Convierte los bytes leídos en un string
+            Debug.Log("Mensaje recibido: " + receivedMessage); // Muestra el mensaje recibido
+            Debug.Log("Bytes recibidos: " + numData.ToString()); // Muestra cuántos bytes se recibieron
+        }
+    }
+}
+
+
+¿Cómo haces para saber que el mensaje enviado está completo o faltan bytes por recibir cuando los mensajes tienen tamaños diferentes?
+Por lo que pude investigar una forma de saber si el mensaje esta completo o no es poniendole un delimitador "/n" al final del mismo.
+El código puede acumular bytes hasta que encuentre el delimitador y procesar el mensaje cuando lo haya recibido por completo.
+
+
+using UnityEngine;
+using System.IO.Ports;
+using TMPro;
+using System.Text;
+
+public class Serial : MonoBehaviour
+{
+    private SerialPort _serialPort = new SerialPort();
+    private StringBuilder messageBuffer = new StringBuilder(); // Buffer para acumular los bytes leídos
+
+    public TextMeshProUGUI myText;
+
+    private static int counter = 0;
+
+    void Start()
+    {
+        _serialPort.PortName = "COM4"; // Configura el puerto serial
+        _serialPort.BaudRate = 115200; // Velocidad de transmisión
+        _serialPort.DtrEnable = true;  // Habilita el DTR
+        _serialPort.Open(); // Abre el puerto serial
+        Debug.Log("Open Serial Port");
+    }
+
+    void Update()
+    {
+        myText.text = counter.ToString(); // Actualiza el contador en pantalla
+        counter++;
+
+        if (Input.GetKeyDown(KeyCode.A)) // Si se presiona la tecla 'A'
+        {
+            byte[] data = { 0x31 }; // Envía el byte '1' al puerto serial
+            _serialPort.Write(data, 0, 1);
+        }
+
+        if (_serialPort.BytesToRead > 0) // Si hay datos disponibles para leer
+        {
+            string receivedData = _serialPort.ReadExisting(); // Lee todos los datos disponibles como string
+            messageBuffer.Append(receivedData); // Acumula los datos en el buffer
+
+            // Verifica si el buffer contiene el delimitador '\n' (fin del mensaje)
+            if (messageBuffer.ToString().Contains("\n"))
+            {
+                // Procesa cada mensaje que termina con el delimitador
+                string[] messages = messageBuffer.ToString().Split('\n'); // Divide el buffer en mensajes
+
+                // Procesa todos los mensajes completos recibidos
+                for (int i = 0; i < messages.Length - 1; i++)
+                {
+                    Debug.Log("Mensaje recibido: " + messages[i]);
+                }
+
+                // Borra el buffer hasta el último mensaje incompleto (si existe)
+                messageBuffer.Clear();
+                if (!string.IsNullOrEmpty(messages[messages.Length - 1]))
+                {
+                    messageBuffer.Append(messages[messages.Length - 1]); // Guarda el mensaje incompleto
+                }
+            }
+        }
+    }
+}
+
