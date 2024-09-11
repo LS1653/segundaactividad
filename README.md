@@ -341,22 +341,27 @@ using System.IO.Ports;
 using TMPro;
 using System.Text;
 
-public class Serial : MonoBehaviour
+public class SerialExample : MonoBehaviour
 {
     private SerialPort _serialPort = new SerialPort();
     private StringBuilder messageBuffer = new StringBuilder(); // Buffer para acumular los bytes leídos
-
     public TextMeshProUGUI myText;
-
     private static int counter = 0;
 
     void Start()
     {
-        _serialPort.PortName = "COM4"; // Configura el puerto serial
-        _serialPort.BaudRate = 115200; // Velocidad de transmisión
-        _serialPort.DtrEnable = true;  // Habilita el DTR
-        _serialPort.Open(); // Abre el puerto serial
-        Debug.Log("Open Serial Port");
+        _serialPort.PortName = "COM4";   // Configura el puerto serie
+        _serialPort.BaudRate = 115200;   // Velocidad de transmisión
+        _serialPort.DtrEnable = true;    // Habilita el DTR
+        _serialPort.Open();              // Abre el puerto serie
+        if (_serialPort.IsOpen)          // Verificar si el puerto se abre correctamente
+        {
+            Debug.Log("Puerto serie abierto correctamente.");
+        }
+        else
+        {
+            Debug.Log("Error al abrir el puerto serie.");
+        }
     }
 
     void Update()
@@ -364,34 +369,37 @@ public class Serial : MonoBehaviour
         myText.text = counter.ToString(); // Actualiza el contador en pantalla
         counter++;
 
-        if (Input.GetKeyDown(KeyCode.A)) // Si se presiona la tecla 'A'
+        // Enviar datos al presionar la tecla 'A'
+        if (Input.GetKeyDown(KeyCode.A))  // Si se presiona la tecla 'A'
         {
-            byte[] data = { 0x31 }; // Envía el byte '1' al puerto serial
+            byte[] data = { 0x31 };       // Envía el byte '1' al puerto serial
             _serialPort.Write(data, 0, 1);
+            Debug.Log("Byte enviado: 1");  // Depuración: Verificar que el byte '1' fue enviado
         }
 
-        if (_serialPort.BytesToRead > 0) // Si hay datos disponibles para leer
+        // Leer datos del puerto serial
+        if (_serialPort.BytesToRead > 0)  // Si hay datos disponibles para leer
         {
-            string receivedData = _serialPort.ReadExisting(); // Lee todos los datos disponibles como string
-            messageBuffer.Append(receivedData); // Acumula los datos en el buffer
+            string receivedData = _serialPort.ReadExisting();  // Lee todos los datos disponibles como string
+            messageBuffer.Append(receivedData);  // Acumula los datos en el buffer
 
             // Verifica si el buffer contiene el delimitador '\n' (fin del mensaje)
             if (messageBuffer.ToString().Contains("\n"))
             {
                 // Procesa cada mensaje que termina con el delimitador
-                string[] messages = messageBuffer.ToString().Split('\n'); // Divide el buffer en mensajes
+                string[] messages = messageBuffer.ToString().Split('\n');  // Divide el buffer en mensajes
 
                 // Procesa todos los mensajes completos recibidos
                 for (int i = 0; i < messages.Length - 1; i++)
                 {
-                    Debug.Log("Mensaje recibido: " + messages[i]);
+                    Debug.Log("Mensaje recibido: " + messages[i]);  // Depuración: Verificar que los mensajes se recibieron correctamente
                 }
 
                 // Borra el buffer hasta el último mensaje incompleto (si existe)
                 messageBuffer.Clear();
                 if (!string.IsNullOrEmpty(messages[messages.Length - 1]))
                 {
-                    messageBuffer.Append(messages[messages.Length - 1]); // Guarda el mensaje incompleto
+                    messageBuffer.Append(messages[messages.Length - 1]);  // Guarda el mensaje incompleto
                 }
             }
         }
