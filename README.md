@@ -406,3 +406,429 @@ public class SerialExample : MonoBehaviour
     }
 }
 
+Modificación en el codigo del pi pico
+
+void setup() {
+    Serial.begin(115200);  // Configura la velocidad de comunicación serial a 115200 baudios
+}
+
+void loop() {
+    // Verifica si hay datos disponibles en el puerto serial
+    if (Serial.available()) {
+        char received = Serial.read();  // Lee el byte recibido
+        Serial.print("Recibido: ");
+        Serial.println(received);  // Depuración: Mostrar el byte recibido en el monitor serie
+
+        // Si el dato recibido es '1', envía el mensaje después de un retraso de 3 segundos
+        if (received == '1') {
+            delay(3000);  // Espera 3 segundos
+            Serial.print("Hola desde Raspi\n");  // Envía el mensaje de vuelta por el puerto serial
+        }
+    }
+}
+
+--------------------------------------------------------------------------
+Ejercicio 3:
+
+Nótese que en los dos ejercicios anteriores, el PC primero le pregunta al controlador por datos (le manda un 1). ¿Y si el PC no pregunta?
+
+Realiza el siguiente experimento. Programa ambos códigos y analiza su funcionamiento.
+Codigos en el pi pico:
+
+void task()
+{
+		enum class TaskStates
+		{
+				INIT,
+				WAIT_INIT,
+				SEND_EVENT
+		};
+		static TaskStates taskState = TaskStates::INIT;
+		static uint32_t previous = 0;
+		static u_int32_t counter = 0;
+
+		switch (taskState)
+		{
+				case TaskStates::INIT:
+				{
+						Serial.begin(115200);
+						taskState = TaskStates::WAIT_INIT;
+						break;
+				}
+				case TaskStates::WAIT_INIT:
+				{
+						if (Serial.available() > 0)
+						{
+								if (Serial.read() == '1')
+								{
+										previous = 0; // Force to send the first value immediately
+										taskState = TaskStates::SEND_EVENT;
+								}
+						}
+						break;
+				}
+				case TaskStates::SEND_EVENT:
+				{
+						uint32_t current = millis();
+						if ((current - previous) > 2000)
+						{
+								previous = current;
+								Serial.print(counter);
+								counter++;
+						}
+						if (Serial.available() > 0)
+						{
+							  if (Serial.read() == '2')
+							  {
+								    taskState = TaskStates::WAIT_INIT;
+							  }
+						}
+						break;
+				}
+				default:
+				{
+						break;
+				}
+		}
+}
+
+void setup()
+{
+		task();
+}
+
+void loop()
+{
+		task();
+}
+
+
+
+Codigo en c#
+
+
+
+using UnityEngine;
+using System.IO.Ports;
+using TMPro;
+
+enum TaskState
+{
+    INIT,
+    WAIT_START,
+    WAIT_EVENTS
+}
+
+public class Serial : MonoBehaviour
+{
+		private static TaskState taskState = TaskState.INIT;
+		private SerialPort _serialPort;
+		private byte[] buffer;
+		public TextMeshProUGUI myText;
+		private int counter = 0;
+
+		void Start()
+    {
+        _serialPort =new SerialPort();
+        _serialPort.PortName = "COM4";
+        _serialPort.BaudRate = 115200;
+        _serialPort.DtrEnable =true;
+        _serialPort.Open();
+        Debug.Log("Open Serial Port");
+        buffer =new byte[128];
+    }
+
+void Update()
+    {
+        myText.text = counter.ToString();
+        counter++;
+
+				switch (taskState)
+        {
+						case TaskState.INIT:
+		            taskState = TaskState.WAIT_START;
+                Debug.Log("WAIT START");
+								break;
+						case TaskState.WAIT_START:
+								if (Input.GetKeyDown(KeyCode.A))
+                {
+                    byte[] data = {0x31};// start
+                    _serialPort.Write(data,0,1);
+                    Debug.Log("WAIT EVENTS");
+                    taskState = TaskState.WAIT_EVENTS;
+                }
+								break;
+						case TaskState.WAIT_EVENTS:
+								if (Input.GetKeyDown(KeyCode.B))
+                {
+                    byte[] data = {0x32};// stop
+                    _serialPort.Write(data,0,1);
+                    Debug.Log("WAIT START");
+                    taskState = TaskState.WAIT_START;
+                }
+								if (_serialPort.BytesToRead > 0)
+                {
+                    int numData = _serialPort.Read(buffer, 0, 128);
+                    Debug.Log(System.Text.Encoding.ASCII.GetString(buffer));
+                }
+								break;
+						default:
+                Debug.Log("State Error");
+								break;
+        }
+    }
+}
+
+
+¿Recuerdas las preguntas presentadas en el experimento anterior? ¿Aquí nos pasa lo mismo?
+No, no paso lo mismo, osea no se traba ni se detiene en ningun momento, esto debido a que bloqueo ocurria porque serial.Read() es bloqueante y se llamaba sin verificar si habian datos disponibles, osea el codigo se detenia esperando a que le llegara información al serial.read(), pero en este codigo como en la corrección que hice en el punto anterior, el codigo verifica mediante la función Serial.available(), si hay datos disponibles, de no ser asi no activa el serial.Read().
+
+Analicemos el asunto. Cuando preguntas _serialPort.BytesToRead > 0 lo que puedes asegurar es que al MENOS tienes un byte del mensaje, pero no puedes saber si tienes todos los bytes que lo componen. Una idea para resolver esto, sería hacer que todos los mensajes tengan el mismo tamaño. De esta manera solo tendrías que preguntar _serialPort.BytesToRead > SIZE, donde SIZE sería el tamaño fijo; sin embargo, esto le resta flexibilidad al protocolo de comunicación. Nota que esto mismo ocurre en el caso del programa del controlador con Serial.available() > 0. ¿Cómo podrías solucionar este problema?
+
+Mi soulación a este problema tambien lo puse en el ejercicio anterior, en donde lo que hago para saber cuando el mensaje ya se puede enviar ya que ya tengo toda la información es mediante un delimitador "/n" al final del mensaje.
+El código puede acumular bytes hasta que encuentre el delimitador y procesar el mensaje cuando lo haya recibido por completo.
+
+
+using UnityEngine;
+using System.IO.Ports;
+using TMPro;
+using System.Text;
+
+public class Serial : MonoBehaviour
+{
+    private SerialPort _serialPort;
+    private StringBuilder messageBuffer = new StringBuilder();  // Buffer para acumular los bytes leídos
+    public TextMeshProUGUI myText;
+    private int counter = 0;
+
+    void Start()
+    {
+        _serialPort = new SerialPort();
+        _serialPort.PortName = "COM3";
+        _serialPort.BaudRate = 115200;
+        _serialPort.DtrEnable = true;
+        _serialPort.Open();
+        Debug.Log("Puerto serial abierto");
+    }
+
+    void Update()
+    {
+        myText.text = counter.ToString();  // Mostrar el contador en pantalla
+        counter++;
+
+        // Enviar datos con las teclas
+        if (Input.GetKeyDown(KeyCode.A))
+        {
+            byte[] data = { 0x31 }; // Enviar el byte '1'
+            _serialPort.Write(data, 0, 1);
+        }
+
+        if (Input.GetKeyDown(KeyCode.B))
+        {
+            byte[] data = { 0x32 }; // Enviar el byte '2'
+            _serialPort.Write(data, 0, 1);
+        }
+
+        // Leer datos desde el puerto serial
+        if (_serialPort.BytesToRead > 0)
+        {
+            string receivedData = _serialPort.ReadExisting();  // Leer los datos disponibles
+            messageBuffer.Append(receivedData);  // Acumular los datos en el buffer
+
+            // Verificar si el buffer contiene el delimitador '\n'
+            if (messageBuffer.ToString().Contains("\n"))
+            {
+                // Dividir el buffer en mensajes utilizando '\n' como delimitador
+                string[] messages = messageBuffer.ToString().Split('\n');
+
+                // Procesar todos los mensajes completos recibidos
+                for (int i = 0; i < messages.Length - 1; i++)
+                {
+                    Debug.Log("Mensaje recibido: " + messages[i]);  // Mostrar el mensaje
+                }
+
+                // Limpiar el buffer hasta el último mensaje incompleto (si lo hay)
+                messageBuffer.Clear();
+                if (!string.IsNullOrEmpty(messages[messages.Length - 1]))
+                {
+                    messageBuffer.Append(messages[messages.Length - 1]);  // Guardar el mensaje incompleto
+                }
+            }
+
+            // Control de tamaño del buffer para evitar crecimiento indefinido
+            if (messageBuffer.Length > 1024)
+            {
+                Debug.LogWarning("Buffer demasiado grande, reiniciando...");
+                messageBuffer.Clear();  // Limpiar buffer si es muy grande
+            }
+        }
+    }
+}
+
+
+
+-------------------------------------------------------------------------------
+Ejercicio 4:
+
+Ahora vas a analizar cómo puedes resolver el problema anterior. Puntualmente, analiza el siguiente programa del controlador:
+
+Codigo en c++:
+
+
+String btnState(uint8_t btnState)
+{
+		if(btnState == HIGH)
+		{
+				return "OFF";
+		}
+		else
+				return "ON";
+}
+
+void task()
+{
+		enum class TaskStates
+		{
+		    INIT,
+		    WAIT_COMMANDS
+	  };
+		static TaskStates taskState = TaskStates::INIT;
+		constexpr uint8_t led = 25;
+		constexpr uint8_t button1Pin = 12;
+		constexpr uint8_t button2Pin = 13;
+		constexpr uint8_t button3Pin = 32;
+		constexpr uint8_t button4Pin = 33;
+
+		switch (taskState)
+	  {
+				case TaskStates::INIT:
+				{
+						Serial.begin(115200);
+						pinMode(led, OUTPUT);
+						digitalWrite(led, LOW);
+						pinMode(button1Pin, INPUT_PULLUP);
+						pinMode(button2Pin, INPUT_PULLUP);
+						pinMode(button3Pin, INPUT_PULLUP);
+						pinMode(button4Pin, INPUT_PULLUP);
+						taskState = TaskStates::WAIT_COMMANDS;
+						break;
+				}
+				case TaskStates::WAIT_COMMANDS:
+				{
+						if (Serial.available() > 0)
+						{
+								String command = Serial.readStringUntil('\n');
+								if (command == "ledON")
+								{
+										digitalWrite(led, HIGH);
+								}
+								else if (command == "ledOFF")
+								{
+										digitalWrite(led, LOW);
+								}
+								else if (command == "readBUTTONS")
+							  {
+										Serial.print("btn1: ");
+						        Serial.print(btnState(digitalRead(button1Pin)).c_str());
+						        Serial.print(" btn2: ");
+						        Serial.print(btnState(digitalRead(button2Pin)).c_str());
+						        Serial.print(" btn3: ");
+						        Serial.print(btnState(digitalRead(button3Pin)).c_str());
+						        Serial.print(" btn4: ");
+						        Serial.print(btnState(digitalRead(button4Pin)).c_str());
+						        Serial.print('\n');
+					      }
+						}
+						break;
+				}
+				default:
+				{
+						break;
+			  }
+		}
+}
+
+void setup()
+{
+  task();
+}
+
+void loop()
+{
+  task();
+}
+
+
+
+Codigo en c#:
+
+
+using UnityEngine;
+using System.IO.Ports;
+using TMPro;
+
+enum TaskState
+{
+    INIT,
+    WAIT_COMMANDS
+}
+
+public classSerial : MonoBehaviour
+{
+		private static TaskState taskState = TaskState.INIT;
+		private SerialPort _serialPort;
+		private byte[] buffer;
+		public TextMeshProUGUI myText;
+		private int counter = 0;
+
+		void Start()
+    {
+				_serialPort =new SerialPort();
+        _serialPort.PortName = "COM3";
+        _serialPort.BaudRate = 115200;
+        _serialPort.DtrEnable =true;
+        _serialPort.NewLine = "\n";
+        _serialPort.Open();
+        Debug.Log("Open Serial Port");
+        buffer =new byte[128];
+    }
+
+		void Update()
+    {
+        myText.text = counter.ToString();
+        counter++;
+
+				switch (taskState)
+        {
+						case TaskState.INIT:
+		            taskState = TaskState.WAIT_COMMANDS;
+                Debug.Log("WAIT COMMANDS");
+								break;
+						case TaskState.WAIT_COMMANDS:
+								if (Input.GetKeyDown(KeyCode.A))
+                {
+		                _serialPort.Write("ledON\n");
+                    Debug.Log("Send ledON");
+                }
+								if (Input.GetKeyDown(KeyCode.S))
+                {
+                    _serialPort.Write("ledOFF\n");
+                    Debug.Log("Send ledOFF");
+                }
+								if (Input.GetKeyDown(KeyCode.R))
+                {
+                    _serialPort.Write("readBUTTONS\n");
+                    Debug.Log("Send readBUTTONS");
+                }
+								if (_serialPort.BytesToRead > 0)
+                {
+                    string response = _serialPort.ReadLine();
+                    Debug.Log(response);
+                }
+								break;
+						default:
+                Debug.Log("State Error");
+								break;
+        }
+    }
+}
