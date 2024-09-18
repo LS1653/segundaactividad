@@ -1,4 +1,4 @@
-Ejercicio 1: comunicación entre computador y controlador
+# Ejercicio 1: comunicación entre computador y controlador
 
 using UnityEngine;
 using System.IO.Ports;
@@ -54,7 +54,7 @@ PortName y BaudRate están relacionados con la comunicación entre lao placa y l
 ------------------------------------------------------------------------------------------------------
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Ejercicio 2: experimento
+# Ejercicio 2: experimento
 
 using UnityEngine;
 using System.IO.Ports;
@@ -428,12 +428,13 @@ void loop() {
 }
 
 --------------------------------------------------------------------------
-Ejercicio 3:
+/////////////////////////////////////////////////////////////////////////////
+# Ejercicio 3:
 
 Nótese que en los dos ejercicios anteriores, el PC primero le pregunta al controlador por datos (le manda un 1). ¿Y si el PC no pregunta?
 
 Realiza el siguiente experimento. Programa ambos códigos y analiza su funcionamiento.
-Codigos en el pi pico:
+## Codigo en c++:
 
 void task()
 {
@@ -504,7 +505,7 @@ void loop()
 
 
 
-Codigo en c#
+## Codigo en c#
 
 
 
@@ -668,7 +669,8 @@ public class Serial : MonoBehaviour
 
 
 -------------------------------------------------------------------------------
-Ejercicio 4:
+//////////////////////////////////////////////////////////////////////////////7
+# Ejercicio 4:
 
 Ahora vas a analizar cómo puedes resolver el problema anterior. Puntualmente, analiza el siguiente programa del controlador:
 
@@ -829,6 +831,403 @@ public classSerial : MonoBehaviour
 						default:
                 Debug.Log("State Error");
 								break;
+        }
+    }
+}
+
+## Codigo c# con comentarios
+
+using UnityEngine; // Importa la librería principal de Unity para usar clases y funciones relacionadas con el juego.
+using System.IO.Ports; // Importa la librería para manejar comunicaciones a través de puertos serie.
+using TMPro; // Importa TextMeshPro para manejo avanzado de texto en Unity.
+using static UnityEditor.Experimental.AssetDatabaseExperimental.AssetDatabaseCounters; // Importa elementos de Unity Editor, probablemente innecesario aquí.
+using System.Threading.Tasks; // Importa funcionalidades para tareas y programación asíncrona.
+using System; // Importa clases básicas del sistema, como tipos de datos y funciones.
+
+enum TaskState // Define un enumerador llamado TaskState para manejar estados de la tarea.
+{
+    INIT, // Estado inicial.
+    WAIT_COMMANDS // Estado donde espera comandos del usuario.
+}
+
+public class Serial : MonoBehaviour // Define una clase llamada 'Serial' que hereda de 'MonoBehaviour', lo que la hace un componente de Unity.
+{
+    private static TaskState taskState = TaskState.INIT; // Declara una variable de estado estática e inicializa en 'INIT'.
+    private SerialPort _serialPort; // Declara un objeto para manejar el puerto serie.
+    private byte[] buffer; // Declara un buffer para almacenar datos leídos del puerto serie.
+    public TextMeshProUGUI myText; // Referencia a un objeto de UI TextMeshProUGUI para mostrar texto en pantalla.
+    private int counter = 0; // Declara un contador entero inicializado en 0.
+
+    void Start() // Método Start que se ejecuta al iniciar el script.
+    {
+        _serialPort = new SerialPort(); // Crea una nueva instancia del puerto serie.
+        _serialPort.PortName = "COM4"; // Configura el nombre del puerto (COM4 en este caso).
+        _serialPort.BaudRate = 115200; // Configura la tasa de baudios a 115200.
+        _serialPort.DtrEnable = true; // Activa el DTR (Data Terminal Ready) del puerto serie.
+        _serialPort.NewLine = "\n"; // Configura el carácter de nueva línea.
+        _serialPort.Open(); // Abre la conexión con el puerto serie.
+        Debug.Log("Open Serial Port"); // Imprime un mensaje en la consola de Unity indicando que el puerto serie se ha abierto.
+        buffer = new byte[128]; // Inicializa el buffer con un tamaño de 128 bytes.
+    }
+
+    void Update() // Método Update que se ejecuta una vez por fotograma.
+    {
+        myText.text = counter.ToString(); // Actualiza el texto de 'myText' para mostrar el valor del contador.
+        counter++; // Incrementa el contador en 1.
+
+        switch (taskState) // Switch para manejar el estado de la tarea.
+        {
+            case TaskState.INIT: // Caso cuando el estado es INIT.
+                taskState = TaskState.WAIT_COMMANDS; // Cambia el estado a WAIT_COMMANDS.
+                Debug.Log("WAIT COMMANDS"); // Imprime un mensaje indicando que está esperando comandos.
+                break;
+
+            case TaskState.WAIT_COMMANDS: // Caso cuando el estado es WAIT_COMMANDS.
+                if (Input.GetKeyDown(KeyCode.A)) // Si la tecla 'A' es presionada:
+                {
+                    _serialPort.Write("ledON\n"); // Envía el comando "ledON" al puerto serie.
+                    Debug.Log("Send ledON"); // Imprime en consola que se envió "ledON".
+                }
+                if (Input.GetKeyDown(KeyCode.S)) // Si la tecla 'S' es presionada:
+                {
+                    _serialPort.Write("ledOFF\n"); // Envía el comando "ledOFF" al puerto serie.
+                    Debug.Log("Send ledOFF"); // Imprime en consola que se envió "ledOFF".
+                }
+                if (Input.GetKeyDown(KeyCode.R)) // Si la tecla 'R' es presionada:
+                {
+                    _serialPort.Write("readBUTTONS\n"); // Envía el comando "readBUTTONS" al puerto serie.
+                    Debug.Log("Send readBUTTONS"); // Imprime en consola que se envió "readBUTTONS".
+                }
+                if (_serialPort.BytesToRead > 0) // Si hay bytes disponibles para leer del puerto serie:
+                {
+                    string response = _serialPort.ReadLine(); // Lee una línea del puerto serie.
+                    Debug.Log(response); // Imprime la respuesta recibida en la consola.
+                }
+                break;
+
+            default: // Caso por defecto si el estado no coincide con ninguno de los anteriores.
+                Debug.Log("State Error"); // Imprime un mensaje de error en consola indicando que hay un estado no manejado.
+                break;
+        }
+    }
+}
+
+## codigo c++ con comentarios 
+
+String btnState(uint8_t btnState) // Función que recibe el estado de un botón y retorna "ON" o "OFF" como string.
+{
+    if(btnState == HIGH) // Si el estado del botón es HIGH (botón no presionado en configuración INPUT_PULLUP).
+    {
+        return "OFF"; // Retorna "OFF" indicando que el botón está apagado.
+    }
+    else // Si el estado del botón no es HIGH (botón presionado).
+        return "ON"; // Retorna "ON" indicando que el botón está encendido.
+}
+
+void task() // Función que implementa la lógica principal de la máquina de estados.
+{
+    enum class TaskStates // Define una enumeración para los estados de la tarea.
+    {
+        INIT, // Estado inicial.
+        WAIT_COMMANDS // Estado donde espera recibir comandos.
+    };
+    static TaskStates taskState = TaskStates::INIT; // Variable estática que mantiene el estado actual, inicializado en INIT.
+    constexpr uint8_t led = 25; // Define un pin constante para el LED.
+    constexpr uint8_t button1Pin = 12; // Define un pin constante para el botón 1.
+    constexpr uint8_t button2Pin = 13; // Define un pin constante para el botón 2.
+    constexpr uint8_t button3Pin = 32; // Define un pin constante para el botón 3.
+    constexpr uint8_t button4Pin = 33; // Define un pin constante para el botón 4.
+
+    switch (taskState) // Switch para manejar los diferentes estados.
+    {
+        case TaskStates::INIT: // Caso para el estado INIT.
+        {
+            Serial.begin(115200); // Inicia la comunicación serie a 115200 baudios.
+            pinMode(led, OUTPUT); // Configura el pin del LED como salida.
+            digitalWrite(led, LOW); // Apaga el LED inicialmente.
+            pinMode(button1Pin, INPUT_PULLUP); // Configura el botón 1 con resistencia interna de pull-up.
+            pinMode(button2Pin, INPUT_PULLUP); // Configura el botón 2 con resistencia interna de pull-up.
+            pinMode(button3Pin, INPUT_PULLUP); // Configura el botón 3 con resistencia interna de pull-up.
+            pinMode(button4Pin, INPUT_PULLUP); // Configura el botón 4 con resistencia interna de pull-up.
+            taskState = TaskStates::WAIT_COMMANDS; // Cambia el estado a WAIT_COMMANDS.
+            break; // Sale del switch.
+        }
+        case TaskStates::WAIT_COMMANDS: // Caso para el estado WAIT_COMMANDS.
+        {
+            if (Serial.available() > 0) // Si hay datos disponibles en el puerto serie.
+            {
+                String command = Serial.readStringUntil('\n'); // Lee una línea completa del puerto serie.
+                if (command == "ledON") // Si el comando es "ledON".
+                {
+                    digitalWrite(led, HIGH); // Enciende el LED.
+                }
+                else if (command == "ledOFF") // Si el comando es "ledOFF".
+                {
+                    digitalWrite(led, LOW); // Apaga el LED.
+                }
+                else if (command == "readBUTTONS") // Si el comando es "readBUTTONS".
+                {
+                    Serial.print("btn1: "); // Imprime "btn1: ".
+                    Serial.print(btnState(digitalRead(button1Pin)).c_str()); // Imprime el estado del botón 1.
+                    Serial.print(" btn2: "); // Imprime " btn2: ".
+                    Serial.print(btnState(digitalRead(button2Pin)).c_str()); // Imprime el estado del botón 2.
+                    Serial.print(" btn3: "); // Imprime " btn3: ".
+                    Serial.print(btnState(digitalRead(button3Pin)).c_str()); // Imprime el estado del botón 3.
+                    Serial.print(" btn4: "); // Imprime " btn4: ".
+                    Serial.print(btnState(digitalRead(button4Pin)).c_str()); // Imprime el estado del botón 4.
+                    Serial.print('\n'); // Imprime una nueva línea.
+                }
+            }
+            break; // Sale del switch.
+        }
+        default: // Caso por defecto (no debería ocurrir en esta lógica).
+        {
+            break; // No hace nada, solo sale del switch.
+        }
+    }
+}
+
+void setup() // Función de configuración de Arduino, llamada una vez al inicio.
+{
+  task(); // Llama a la función task para iniciar la máquina de estados.
+}
+
+void loop() // Función principal de Arduino, se ejecuta en un bucle infinito.
+{
+  task(); // Llama a la función task repetidamente para mantener la máquina de estados activa.
+}
+
+
+# Ejercicio 5:
+
+Repaso.
+
+# Ejercicio 6 Reto bonificación:
+
+## Codigo c#
+
+using UnityEngine;
+using System.IO.Ports;
+using TMPro;
+using System.Text;
+using System.Collections;  // Necesario para usar IEnumerator y Corrutinas
+
+public class SerialExample : MonoBehaviour
+{
+    // Declara un objeto SerialPort para la comunicación serie.
+    private SerialPort _serialPort = new SerialPort();
+
+    // Buffer para acumular los datos leídos del puerto serial.
+    private StringBuilder messageBuffer = new StringBuilder();
+
+    // Campo para mostrar el contador en la UI (TextMeshPro).
+    public TextMeshProUGUI myText;
+
+    // Campo para mostrar los mensajes en la UI (TextMeshPro).
+    public TextMeshProUGUI logText;
+
+    // Referencia al objeto cubo 3D en la escena.
+    public GameObject myCube;
+
+    // Renderer del cubo para poder cambiar su color.
+    private Renderer cubeRenderer;
+
+    // Variable para contar el tiempo o eventos, comienza en 0.
+    private static int counter = 0;
+
+    // Método Start: se ejecuta al inicio del programa.
+    void Start()
+    {
+        // Obtiene el componente Renderer del cubo.
+        cubeRenderer = myCube.GetComponent<Renderer>();
+
+        // Configura el puerto serie para conectarse al COM4.
+        _serialPort.PortName = "COM4";
+
+        // Configura la velocidad de transmisión en baudios.
+        _serialPort.BaudRate = 115200;
+
+        // Habilita DTR (Data Terminal Ready).
+        _serialPort.DtrEnable = true;
+
+        // Abre el puerto serie.
+        _serialPort.Open();
+
+        // Verifica si el puerto se abrió correctamente.
+        if (_serialPort.IsOpen)
+        {
+            Debug.Log("Puerto serie abierto correctamente.");
+            logText.text = "Puerto serie abierto correctamente.";  // Muestra mensaje en la UI.
+        }
+        else
+        {
+            Debug.Log("Error al abrir el puerto serie.");
+            logText.text = "Error al abrir el puerto serie.";  // Muestra error en la UI.
+        }
+    }
+
+    // Método Update: se ejecuta en cada frame.
+    void Update()
+    {
+        // Actualiza el contador en la UI.
+        myText.text = counter.ToString();
+        counter++;  // Incrementa el contador.
+
+        // Verifica si hay datos en el puerto serial.
+        if (_serialPort.BytesToRead > 0)
+        {
+            // Lee los datos recibidos del puerto serial.
+            string receivedData = _serialPort.ReadExisting();
+
+            // Añade los datos recibidos al buffer.
+            messageBuffer.Append(receivedData);
+
+            // Si hay una nueva línea en los datos recibidos.
+            if (messageBuffer.ToString().Contains("\n"))
+            {
+                // Divide el mensaje por cada línea recibida.
+                string[] messages = messageBuffer.ToString().Split('\n');
+
+                // Procesa cada mensaje recibido.
+                for (int i = 0; i < messages.Length - 1; i++)
+                {
+                    Debug.Log("Mensaje recibido: " + messages[i]);
+                    logText.text = "Mensaje recibido: " + messages[i];  // Muestra el mensaje en la UI.
+                    ProcessMessage(messages[i]);  // Procesa el mensaje recibido.
+                }
+
+                // Limpia el buffer de mensajes.
+                messageBuffer.Clear();
+
+                // Si hay un mensaje incompleto, lo guarda para completarlo en la siguiente lectura.
+                if (!string.IsNullOrEmpty(messages[messages.Length - 1]))
+                {
+                    messageBuffer.Append(messages[messages.Length - 1]);
+                }
+            }
+        }
+    }
+
+    // Método para encender el LED (llamado por un botón en Unity).
+    public void TurnOnLED()
+    {
+        // Verifica si el puerto serial está abierto.
+        if (_serialPort.IsOpen)
+        {
+            _serialPort.Write("ON\n");  // Envía el comando "ON" por el puerto serial.
+            Debug.Log("Comando para encender el LED enviado.");
+            cubeRenderer.material.color = Color.yellow;  // Cambia el color del cubo a amarillo.
+            logText.text = "Comando para encender el LED enviado.";  // Actualiza la UI.
+        }
+        else
+        {
+            Debug.Log("El puerto serial no está abierto.");
+            logText.text = "El puerto serial no está abierto.";  // Muestra error en la UI.
+        }
+    }
+
+    // Método para apagar el LED (llamado por un botón en Unity).
+    public void TurnOffLED()
+    {
+        // Verifica si el puerto serial está abierto.
+        if (_serialPort.IsOpen)
+        {
+            _serialPort.Write("OFF\n");  // Envía el comando "OFF" por el puerto serial.
+            Debug.Log("Comando para apagar el LED enviado.");
+            cubeRenderer.material.color = Color.black;  // Cambia el color del cubo a negro.
+            logText.text = "Comando para apagar el LED enviado.";  // Actualiza la UI.
+        }
+        else
+        {
+            Debug.Log("El puerto serial no está abierto.");
+            logText.text = "El puerto serial no está abierto.";  // Muestra error en la UI.
+        }
+    }
+
+    // Método para leer el estado del controlador (llamado por un botón en Unity).
+    public void ReadControllerState()
+    {
+        // Verifica si el puerto serial está abierto.
+        if (_serialPort.IsOpen)
+        {
+            _serialPort.Write("r\n");  // Envía el comando "r" para leer el estado del controlador.
+            Debug.Log("Comando para leer el estado enviado.");
+            StartCoroutine(ChangeCubeToMulticolor());  // Inicia la animación multicolor del cubo.
+            logText.text = "Comando para leer el estado enviado.";  // Actualiza la UI.
+        }
+        else
+        {
+            Debug.Log("El puerto serial no está abierto.");
+            logText.text = "El puerto serial no está abierto.";  // Muestra error en la UI.
+        }
+    }
+
+    // Método para procesar el mensaje recibido del controlador.
+    private void ProcessMessage(string message)
+    {
+        // Divide el mensaje recibido por comas.
+        string[] parts = message.Split(',');
+
+        // Si el mensaje contiene dos partes (contador y estado del LED).
+        if (parts.Length == 2)
+        {
+            string contador = parts[0];       // Primera parte del mensaje es el contador.
+            string estadoLED = parts[1];      // Segunda parte del mensaje es el estado del LED.
+
+            // Actualiza la UI con el contador y el estado del LED.
+            myText.text = "Contador: " + contador + " | LED: " + estadoLED;
+        }
+        else
+        {
+            Debug.LogWarning("Mensaje recibido en formato incorrecto: " + message);
+        }
+    }
+
+    // Corrutina para cambiar el cubo a colores multicolor.
+    private IEnumerator ChangeCubeToMulticolor()
+    {
+        float duration = 2f;  // Duración de la animación.
+        float elapsedTime = 0f;
+
+        // Cambia el color del cubo de manera aleatoria durante el tiempo especificado.
+        while (elapsedTime < duration)
+        {
+            cubeRenderer.material.color = new Color(Random.value, Random.value, Random.value);  // Color aleatorio.
+            elapsedTime += Time.deltaTime;  // Incrementa el tiempo transcurrido.
+            yield return null;  // Espera hasta el siguiente frame.
+        }
+    }
+}
+
+## Codigo c++
+
+void setup() {
+    pinMode(LED_BUILTIN, OUTPUT);  // Configura el pin del LED interno como salida
+    Serial.begin(115200);          // Configura la velocidad de comunicación serial a 115200 baudios
+}
+
+void loop() {
+    static bool ledState = false;  // Estado inicial del LED (apagado)
+
+    // Verifica si hay datos disponibles en el puerto serial
+    if (Serial.available()) {
+        String received = Serial.readStringUntil('\n');  // Lee el mensaje completo hasta '\n'
+
+        // Si el dato recibido es 'r', envía el mensaje en el formato correcto
+        if (received == "r") {  // Comando 'read' recibido
+            int contador = millis() / 1000;  // Simulación de un contador
+            String estadoLED = digitalRead(LED_BUILTIN) == HIGH ? "ON" : "OFF";  // Lee el estado del LED interno
+            Serial.print(contador);
+            Serial.print(",");
+            Serial.println(estadoLED);  // Envía el estado en formato contador,estadoLED
+        }
+        else if (received == "ON") {
+            digitalWrite(LED_BUILTIN, HIGH);  // Enciende el LED
+            Serial.println("LED encendido");  // Mensaje de confirmación
+        }
+        else if (received == "OFF") {
+            digitalWrite(LED_BUILTIN, LOW);  // Apaga el LED
+            Serial.println("LED apagado");  // Mensaje de confirmación
         }
     }
 }

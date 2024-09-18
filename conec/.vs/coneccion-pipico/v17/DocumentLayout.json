@@ -1,0 +1,45 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\Admin\\Documents\\Universidad\\4-semestre\\sistemas-fisicos-interactivos\\coneccion-pipico\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{5F29A8CF-58C5-8604-A286-E779ED8FE921}|Assembly-CSharp.csproj|c:\\users\\admin\\documents\\universidad\\4-semestre\\sistemas-fisicos-interactivos\\coneccion-pipico\\assets\\scripts\\scrpt1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{5F29A8CF-58C5-8604-A286-E779ED8FE921}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\scrpt1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 2,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:128:0:{1fc202d4-d401-403c-9834-5b218574bb67}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{1c4feeaa-4718-4aa9-859d-94ce25d182ba}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "scrpt1.cs",
+              "DocumentMoniker": "C:\\Users\\Admin\\Documents\\Universidad\\4-semestre\\sistemas-fisicos-interactivos\\coneccion-pipico\\Assets\\scripts\\scrpt1.cs",
+              "RelativeDocumentMoniker": "Assets\\scripts\\scrpt1.cs",
+              "ToolTip": "C:\\Users\\Admin\\Documents\\Universidad\\4-semestre\\sistemas-fisicos-interactivos\\coneccion-pipico\\Assets\\scripts\\scrpt1.cs",
+              "RelativeToolTip": "Assets\\scripts\\scrpt1.cs",
+              "ViewState": "AQIAAKQAAAAAAAAAAAAswL8AAAABAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-09-04T16:36:00.65Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
