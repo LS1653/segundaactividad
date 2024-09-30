@@ -676,7 +676,7 @@ Ahora vas a analizar cómo puedes resolver el problema anterior. Puntualmente, a
 
 Codigo en c++:
 
-
+```
 String btnState(uint8_t btnState)
 {
 		if(btnState == HIGH)
